@@ -7,6 +7,17 @@ import torchvision.models.detection as detection
 from dataset import FlickrLogosDataset
 
 
+def to_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def str_list_to_int(str_list):
+    return [to_int(s) for s in str_list]
+
+
 def read_flickr_logos_annotations(annotations_path):
     with open(annotations_path, "r") as f:
         lines = f.readlines()
@@ -15,19 +26,20 @@ def read_flickr_logos_annotations(annotations_path):
     data = [line.strip().split("\t") for line in lines]
     data = [line.strip().split(" ") for line in lines]
 
-
     # Extract individual data points from each line
     file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
 
-    return file_names, class_names, x1, y1, x2, y2
+    return file_names, class_names, str_list_to_int(x1), str_list_to_int(y1), str_list_to_int(x2), str_list_to_int(y2)
 
 
-file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations("dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt")
+annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
+dataset_path = "dataset/flickr_logos_27_dataset_images"
+file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(annotation_path)
 
 # Define the dataset and transformations
 transform = transforms.Compose([transforms.ToTensor(), transforms.Resize((800, 800))])
 dataset = FlickrLogosDataset(
-    "flickr_logos_27_dataset_images",
+    dataset_path,
     file_names,
     class_names,
     list(zip(x1, y1, x2, y2)),
@@ -37,6 +49,7 @@ dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
 # Initialize the model for Faster R-CNN
 num_classes = len(set(class_names)) + 1  # +1 for the background class
+# TODO: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
 model = detection.fasterrcnn_resnet50_fpn(pretrained=False, num_classes=num_classes)
 
 # Move model to GPU if available
