@@ -29,7 +29,14 @@ def read_flickr_logos_annotations(annotations_path):
     # Extract individual data points from each line
     file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
 
-    return file_names, class_names, str_list_to_int(x1), str_list_to_int(y1), str_list_to_int(x2), str_list_to_int(y2)
+    return (
+        file_names,
+        class_names,
+        str_list_to_int(x1),
+        str_list_to_int(y1),
+        str_list_to_int(x2),
+        str_list_to_int(y2),
+    )
 
 
 annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
@@ -69,7 +76,13 @@ for epoch in range(num_epochs):
 
     for images, targets in dataloader:
         images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        targets = [
+            {
+                "labels": targets["labels"][idx].to(device),
+                "boxes": targets["boxes"][idx].to(device),
+            }
+            for idx in range(len(targets["labels"]))
+        ]
 
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
@@ -83,3 +96,4 @@ for epoch in range(num_epochs):
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss/len(dataloader)}")
 
 print("Training complete!")
+# TODO: normalize bbox coordinates
