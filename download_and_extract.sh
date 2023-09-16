@@ -11,3 +11,7 @@ tar -xzvf flickr_logos_27_dataset.tar.gz -C dataset/
 
 # Extract the images tar.gz file into the dataset/ directory
 tar -xzvf dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_images.tar.gz -C dataset/
+
+# Remove the .tar.gz files after extraction
+rm flickr_logos_27_dataset.tar.gz
+rm dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_images.tar.gz
