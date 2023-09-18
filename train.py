@@ -3,6 +3,7 @@ from torch.optim import SGD
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
+import matplotlib.pyplot as plt
 
 from dataset import FlickrLogosDataset
 
@@ -39,12 +40,15 @@ def read_flickr_logos_annotations(annotations_path):
     )
 
 
+# TODO: distractor dataset?
 annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
 dataset_path = "dataset/flickr_logos_27_dataset_images"
 file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(annotation_path)
 
 # Define the dataset and transformations
-transform = transforms.Compose([transforms.ToTensor(), transforms.Resize((800, 800))])
+transform = transforms.Compose(
+    [transforms.ToTensor(), transforms.Resize((512, 512), antialias=True)]
+)
 dataset = FlickrLogosDataset(
     dataset_path,
     file_names,
@@ -56,8 +60,7 @@ dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
 # Initialize the model for Faster R-CNN
 num_classes = len(set(class_names)) + 1  # +1 for the background class
-# TODO: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
-model = detection.fasterrcnn_resnet50_fpn(pretrained=False, num_classes=num_classes)
+model = detection.fasterrcnn_resnet50_fpn(num_classes=num_classes)
 
 # Move model to GPU if available
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -68,6 +71,9 @@ optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
 
 # Number of training epochs
 num_epochs = 10
+
+# List to store epoch-wise losses for plotting
+epoch_losses = []
 
 # Training loop
 for epoch in range(num_epochs):
@@ -93,7 +99,18 @@ for epoch in range(num_epochs):
 
         total_loss += losses.item()
 
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss/len(dataloader)}")
+    avg_loss = total_loss / len(dataloader)
+    epoch_losses.append(avg_loss)  # Store epoch average loss
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss}")
 
 print("Training complete!")
-# TODO: normalize bbox coordinates
+
+# Plotting the training loss
+plt.figure(figsize=(12, 6))
+plt.plot(epoch_losses, label="Training Loss", color="blue")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("Training Loss over Epochs")
+plt.legend()
+plt.grid(True)
+plt.show()
