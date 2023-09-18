@@ -1,8 +1,10 @@
 import torch
 from torch.optim import SGD
 from torch.utils.data import random_split, DataLoader
+import torchvision.models as torchmodels
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
+import torchmetrics
 import matplotlib.pyplot as plt
 
 from dataset import FlickrLogosDataset
@@ -41,9 +43,13 @@ def read_flickr_logos_annotations(annotations_path):
 
 
 # TODO: distractor dataset?
-annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
+train_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
+# test_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_query_set_annotation.txt"
 dataset_path = "dataset/flickr_logos_27_dataset_images"
-file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(annotation_path)
+
+file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(
+    train_annotation_path
+)
 
 # Define the dataset and transformations
 transform = transforms.Compose(
@@ -61,63 +67,42 @@ dataset = FlickrLogosDataset(
 train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
-val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
 
-dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
+dataloaders = {}
+dataloaders["train"] = DataLoader(
+    train_dataset, batch_size=8, shuffle=True, num_workers=4
+)
+dataloaders["val"] = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
 
 # Initialize the model for Faster R-CNN
 num_classes = len(set(class_names)) + 1  # +1 for the background class
-model = detection.fasterrcnn_resnet50_fpn(num_classes=num_classes)
-
-# Move model to GPU if available
+model = detection.fasterrcnn_resnet50_fpn(
+    weights_backbone=torchmodels.resnet.ResNet50_Weights.IMAGENET1K_V1,
+    num_classes=num_classes,
+)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
-
-# Define the optimizer
 optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
-
-# Number of training epochs
 num_epochs = 10
+iou_metric = torchmetrics.detection.IntersectionOverUnion()
 
 # List to store epoch-wise losses for plotting
-train_epoch_losses = []
-val_epoch_losses = []
+epoch_losses = []
+epoch_ious = []
 
 # Training loop
 for epoch in range(num_epochs):
-    model.train()
-    train_total_loss = 0.0
+    for phase in ["train", "val"]:
+        if phase == "train":
+            model.train()
+        else:
+            model.eval()
 
-    for images, targets in dataloader:
-        images = list(image.to(device) for image in images)
-        targets = [
-            {
-                "labels": targets["labels"][idx].to(device),
-                "boxes": targets["boxes"][idx].to(device),
-            }
-            for idx in range(len(targets["labels"]))
-        ]
+        running_loss = 0.0
+        running_iou = 0.0
 
-        loss_dict = model(images, targets)
-        losses = sum(loss for loss in loss_dict.values())
-
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-
-        train_total_loss += losses.item()
-
-    train_avg_loss = train_total_loss / len(train_dataloader)
-    train_epoch_losses.append(train_avg_loss)
-    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_avg_loss}")
-
-    # Validation
-    model.eval()
-    val_total_loss = 0.0
-    with torch.no_grad():
-        for images, targets in val_dataloader:
-            images = list(image.to(device) for image in images)
+        for images, targets in dataloaders[phase]:
+            images = [image.to(device) for image in images]
             targets = [
                 {
                     "labels": targets["labels"][idx].to(device),
@@ -126,23 +111,51 @@ for epoch in range(num_epochs):
                 for idx in range(len(targets["labels"]))
             ]
 
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            val_total_loss += losses.item()
+            if phase == "train":
+                # Calculate training loss
+                loss_dict = model(images, targets)
+                losses = torch.stack([loss for loss in loss_dict.values()]).sum()
+                running_loss += losses.item()
 
-    val_avg_loss = val_total_loss / len(val_dataloader)
-    val_epoch_losses.append(val_avg_loss)
-    print(f"Epoch {epoch + 1}/{num_epochs}, Validation Loss: {val_avg_loss}")
+                # Backpropagate
+                optimizer.zero_grad()
+                losses.backward()
+                optimizer.step()
+            else:
+                # Calculate IoU for all phases
+                model.eval()
+                outputs = model(images)
+                iou = iou_metric(outputs, targets)
+                iou = iou["iou"].item()
+                if iou:
+                    running_iou += iou
 
-print("Training complete!")
+    epoch_loss = running_loss / len(dataloaders["train"])
+    epoch_iou = running_iou / len(dataloaders["val"])
 
-# Plotting the training and validation loss
+    epoch_losses.append(epoch_loss)
+    epoch_ious.append(epoch_iou)
+
+    print(f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f}")
+
+
+# Plotting losses and IoU
 plt.figure(figsize=(12, 6))
-plt.plot(train_epoch_losses, label="Training Loss", color="blue")
-plt.plot(val_epoch_losses, label="Validation Loss", color="red")
+plt.plot(epoch_losses, label="Loss")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 plt.title("Loss over Epochs")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+plt.figure(figsize=(12, 6))
+plt.plot(epoch_ious, label="IoU")
+plt.xlabel("Epoch")
+plt.ylabel("IoU")
+plt.title("IoU over Epochs")
+plt.legend()
+plt.grid(True)
+
+# TODO: each epoch plot, augmentation
+# TODO: mean average precision, mean average recall, IoU per class

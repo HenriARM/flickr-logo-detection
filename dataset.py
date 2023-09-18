@@ -23,30 +23,21 @@ class FlickrLogosDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.file_names[idx])
         image = Image.open(img_path).convert("RGB")
 
-        # Get image dimensions
-        img_width, img_height = image.size
-
         # Normalize bounding box coordinates
         x1, y1, x2, y2 = self.box_coords[idx]
-        normalized_box = [
-            round(x1 / img_width, 4),
-            round(y1 / img_height, 4),
-            round(x2 / img_width, 4),
-            round(y2 / img_height, 4),
-        ]
 
         # Ensure valid bounding boxes (see example dataset/flickr_logos_27_dataset_images/2662264721.jpg)
-        if normalized_box[2] <= normalized_box[0]:
-            normalized_box[2] = normalized_box[0] + 1e-5
-        if normalized_box[3] <= normalized_box[1]:
-            normalized_box[3] = normalized_box[1] + 1e-5
+        if x2 <= x1:
+            x2 = x1 + 1e-5
+        if y2 <= y1:
+            y2 = y1 + 1e-5
 
         # Constructing the targets dictionary
         targets = {}
         targets["labels"] = torch.tensor(
             [self.class_to_idx[self.class_names[idx]]], dtype=torch.int64
         )
-        targets["boxes"] = torch.tensor([normalized_box], dtype=torch.float32)
+        targets["boxes"] = torch.tensor([[x1, y1, x2, y2]], dtype=torch.float32)
 
         if self.transforms:
             image = self.transforms(image)
