@@ -1,6 +1,6 @@
 import torch
 from torch.optim import SGD
-from torch.utils.data import DataLoader
+from torch.utils.data import random_split, DataLoader
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
 import matplotlib.pyplot as plt
@@ -56,6 +56,14 @@ dataset = FlickrLogosDataset(
     list(zip(x1, y1, x2, y2)),
     transforms=transform,
 )
+
+# Splitting the dataset into training and validation
+train_size = int(0.8 * len(dataset))
+val_size = len(dataset) - train_size
+train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
+
 dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
 # Initialize the model for Faster R-CNN
@@ -73,12 +81,13 @@ optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
 num_epochs = 10
 
 # List to store epoch-wise losses for plotting
-epoch_losses = []
+train_epoch_losses = []
+val_epoch_losses = []
 
 # Training loop
 for epoch in range(num_epochs):
     model.train()
-    total_loss = 0.0
+    train_total_loss = 0.0
 
     for images, targets in dataloader:
         images = list(image.to(device) for image in images)
@@ -97,20 +106,43 @@ for epoch in range(num_epochs):
         losses.backward()
         optimizer.step()
 
-        total_loss += losses.item()
+        train_total_loss += losses.item()
 
-    avg_loss = total_loss / len(dataloader)
-    epoch_losses.append(avg_loss)  # Store epoch average loss
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss}")
+    train_avg_loss = train_total_loss / len(train_dataloader)
+    train_epoch_losses.append(train_avg_loss)
+    print(f"Epoch {epoch + 1}/{num_epochs}, Training Loss: {train_avg_loss}")
+
+    # Validation
+    model.eval()
+    val_total_loss = 0.0
+    with torch.no_grad():
+        for images, targets in val_dataloader:
+            images = list(image.to(device) for image in images)
+            targets = [
+                {
+                    "labels": targets["labels"][idx].to(device),
+                    "boxes": targets["boxes"][idx].to(device),
+                }
+                for idx in range(len(targets["labels"]))
+            ]
+
+            loss_dict = model(images, targets)
+            losses = sum(loss for loss in loss_dict.values())
+            val_total_loss += losses.item()
+
+    val_avg_loss = val_total_loss / len(val_dataloader)
+    val_epoch_losses.append(val_avg_loss)
+    print(f"Epoch {epoch + 1}/{num_epochs}, Validation Loss: {val_avg_loss}")
 
 print("Training complete!")
 
-# Plotting the training loss
+# Plotting the training and validation loss
 plt.figure(figsize=(12, 6))
-plt.plot(epoch_losses, label="Training Loss", color="blue")
+plt.plot(train_epoch_losses, label="Training Loss", color="blue")
+plt.plot(val_epoch_losses, label="Validation Loss", color="red")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.title("Training Loss over Epochs")
+plt.title("Loss over Epochs")
 plt.legend()
 plt.grid(True)
 plt.show()
