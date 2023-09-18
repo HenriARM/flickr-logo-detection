@@ -29,19 +29,17 @@ class FlickrLogosDataset(Dataset):
         # Normalize bounding box coordinates
         x1, y1, x2, y2 = self.box_coords[idx]
         normalized_box = [
-            x1 / img_width,
-            y1 / img_height,
-            x2 / img_width,
-            y2 / img_height,
+            round(x1 / img_width, 4),
+            round(y1 / img_height, 4),
+            round(x2 / img_width, 4),
+            round(y2 / img_height, 4),
         ]
-        
-        # Ensure valid bounding boxes
+
+        # Ensure valid bounding boxes (see example dataset/flickr_logos_27_dataset_images/2662264721.jpg)
         if normalized_box[2] <= normalized_box[0]:
-            print(img_path)
             normalized_box[2] = normalized_box[0] + 1e-5
         if normalized_box[3] <= normalized_box[1]:
             normalized_box[3] = normalized_box[1] + 1e-5
-            print(img_path)
 
         # Constructing the targets dictionary
         targets = {}
