@@ -78,11 +78,12 @@ dataloaders["val"] = DataLoader(val_dataset, batch_size=8, shuffle=False, num_wo
 num_classes = len(set(class_names)) + 1  # +1 for the background class
 model = detection.fasterrcnn_resnet50_fpn(
     weights_backbone=torchmodels.resnet.ResNet50_Weights.IMAGENET1K_V1,
+    progress=True,
     num_classes=num_classes,
 )
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
-optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 num_epochs = 10
 iou_metric = torchmetrics.detection.IntersectionOverUnion()
 
@@ -92,14 +93,14 @@ epoch_ious = []
 
 # Training loop
 for epoch in range(num_epochs):
+    running_loss = 0.0
+    running_iou = 0.0
+
     for phase in ["train", "val"]:
         if phase == "train":
             model.train()
         else:
             model.eval()
-
-        running_loss = 0.0
-        running_iou = 0.0
 
         for images, targets in dataloaders[phase]:
             images = [image.to(device) for image in images]
@@ -123,12 +124,15 @@ for epoch in range(num_epochs):
                 optimizer.step()
             else:
                 # Calculate IoU for all phases
-                model.eval()
-                outputs = model(images)
+                with torch.no_grad():
+                    outputs = model(images)
                 iou = iou_metric(outputs, targets)
                 iou = iou["iou"].item()
                 if iou:
                     running_iou += iou
+
+                # for image, prediction in zip(images, outputs):
+                #    visualize_predictions(image, prediction)
 
     epoch_loss = running_loss / len(dataloaders["train"])
     epoch_iou = running_iou / len(dataloaders["val"])
