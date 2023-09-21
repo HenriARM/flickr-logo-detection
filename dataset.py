@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from PIL import Image
+import cv2
 import os
 import torch
 
@@ -21,10 +21,15 @@ class FlickrLogosDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.img_dir, self.file_names[idx])
-        image = Image.open(img_path).convert("RGB")
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width, _ = image.shape
 
-        # Normalize bounding box coordinates
         x1, y1, x2, y2 = self.box_coords[idx]
+
+        # Check and correct bounding box coordinates
+        x1, x2 = min(x1, x2, width-1), max(x1, x2, width-1)
+        y1, y2 = min(y1, y2, height-1), max(y1, y2, height-1)
 
         # Ensure valid bounding boxes (see example dataset/flickr_logos_27_dataset_images/2662264721.jpg)
         if x2 <= x1:
