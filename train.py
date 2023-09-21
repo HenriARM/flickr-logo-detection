@@ -60,7 +60,7 @@ dataset = FlickrLogosDataset(
     dataset_path,
     file_names,
     class_names,
-    list(zip(x1, y1, x2, y2)),
+    list(zip(x1, y1, x2, y2)), 
     transforms=None,
 )
 
@@ -70,12 +70,11 @@ val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 val_transform = transforms.Compose(
-    [transforms.Resize((512, 512), antialias=True), transforms.ToTensor()]
+    [transforms.Resize((512, 512), antialias=True)]
 )
 
 train_transform = transforms.Compose(
     [
-        transforms.Resize((512, 512), antialias=True),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
@@ -106,6 +105,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 model.to(device)
 optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 num_epochs = 100
+
 iou_metric = torchmetrics.detection.IntersectionOverUnion()
 
 # List to store epoch-wise losses for plotting
@@ -116,6 +116,7 @@ epoch_ious = []
 for epoch in range(num_epochs):
     running_loss = 0.0
     running_iou = 0.0
+    classwise_ious = {i: [] for i in range(num_classes)}
 
     for phase in ["train", "val"]:
         if phase == "train":
@@ -153,6 +154,15 @@ for epoch in range(num_epochs):
                 if iou:
                     running_iou += iou
 
+                for pred, target in zip(outputs, targets):
+                    for gt_box, gt_label in zip(target["boxes"], target["labels"]):
+                        for pred_box, pred_label in zip(pred["boxes"], pred["labels"]):
+                            if gt_label == pred_label:
+                                iou = iou_metric([pred], [target])
+                                iou = iou["iou"].item()
+                                if iou:
+                                    classwise_ious[gt_label.item()].append(iou)
+
                 # visualize_predictions(images[0], outputs[0])
 
     epoch_loss = running_loss / len(dataloaders["train"])
@@ -161,7 +171,14 @@ for epoch in range(num_epochs):
     epoch_losses.append(epoch_loss)
     epoch_ious.append(epoch_iou)
 
-    print(f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f}")
+    mean_ious_per_class = {
+        cls: sum(ious) / len(ious) if ious else 0
+        for cls, ious in classwise_ious.items()
+    }
+
+    print(
+        f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f} Classwise IoUs: {mean_ious_per_class}"
+    )
 
     plots_dir = Path("plots")
     plots_dir.mkdir(parents=True, exist_ok=True)
