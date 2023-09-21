@@ -12,6 +12,7 @@ from dataset import FlickrLogosDataset
 # from torch.optim.lr_scheduler import StepLR
 # from utils import visualize_predictions, show_images
 from tqdm import tqdm
+from pathlib import Path
 
 
 def to_int(s):
@@ -162,23 +163,29 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f}")
 
+    plots_dir = Path("plots")
+    plots_dir.mkdir(parents=True, exist_ok=True)
 
-# Plotting losses and IoU
-plt.figure(figsize=(12, 6))
-plt.plot(epoch_losses, label="Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.title("Loss over Epochs")
-plt.legend()
-plt.grid(True)
-plt.show()
+    # Plotting losses and save
+    plt.figure(figsize=(12, 6))
+    plt.plot(epoch_losses, label="Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title(f"Loss over Epochs up to Epoch {epoch + 1}")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(plots_dir / "loss_epochs.png")
+    plt.close()  # Close the plot to free up memory
 
-plt.figure(figsize=(12, 6))
-plt.plot(epoch_ious, label="IoU")
-plt.xlabel("Epoch")
-plt.ylabel("IoU")
-plt.title("IoU over Epochs")
-plt.legend()
-plt.grid(True)
+    # Plotting IoU and save
+    plt.figure(figsize=(12, 6))
+    plt.plot(epoch_ious, label="IoU")
+    plt.xlabel("Epoch")
+    plt.ylabel("IoU")
+    plt.title(f"IoU over Epochs up to Epoch {epoch + 1}")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(plots_dir / "iou_epochs.png")
+    plt.close()  # Close the plot to free up memory
 
 # TODO: mean average precision, mean average recall, IoU per class
