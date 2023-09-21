@@ -1,6 +1,7 @@
 # custom
 dataset/
 plots/
+checkpoints/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

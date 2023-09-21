@@ -5,7 +5,12 @@ import torchvision.models as torchmodels
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
 import torchmetrics
+import matplotlib
+
+matplotlib.use("Agg")  # Set a non-GUI backend
 import matplotlib.pyplot as plt
+
+plt.ioff()
 
 from dataset import FlickrLogosDataset
 
@@ -60,7 +65,7 @@ dataset = FlickrLogosDataset(
     dataset_path,
     file_names,
     class_names,
-    list(zip(x1, y1, x2, y2)), 
+    list(zip(x1, y1, x2, y2)),
     transforms=None,
 )
 
@@ -70,15 +75,15 @@ val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 val_transform = transforms.Compose(
-    [transforms.Resize((512, 512), antialias=True)]
+    [transforms.ToTensor(), transforms.Resize((512, 512), antialias=True)]
 )
 
 train_transform = transforms.Compose(
     [
+        transforms.ToTensor(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-        transforms.ToTensor(),
     ]
 )
 
@@ -180,6 +185,23 @@ for epoch in range(num_epochs):
         f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f} Classwise IoUs: {mean_ious_per_class}"
     )
 
+    checkpoints_dir = Path("checkpoints")
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save checkpoint every 5 epochs
+    if (epoch + 1) % 5 == 0:
+        checkpoint_path = checkpoints_dir / f"model_epoch_{epoch+1}.pth"
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": epoch_loss,
+                "iou": epoch_iou,
+            },
+            checkpoint_path,
+        )
+
     plots_dir = Path("plots")
     plots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -205,4 +227,4 @@ for epoch in range(num_epochs):
     plt.savefig(plots_dir / "iou_epochs.png")
     plt.close()  # Close the plot to free up memory
 
-# TODO: mean average precision, mean average recall, IoU per class
+# TODO: mean average precision, mean average recall
