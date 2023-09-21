@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 
 from dataset import FlickrLogosDataset
 
+# from torch.optim.lr_scheduler import StepLR
+# from utils import visualize_predictions, show_images
+from tqdm import tqdm
+
 
 def to_int(s):
     try:
@@ -51,16 +55,12 @@ file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(
     train_annotation_path
 )
 
-# Define the dataset and transformations
-transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Resize((512, 512), antialias=True)]
-)
 dataset = FlickrLogosDataset(
     dataset_path,
     file_names,
     class_names,
     list(zip(x1, y1, x2, y2)),
-    transforms=transform,
+    transforms=None,
 )
 
 # Splitting the dataset into training and validation
@@ -68,11 +68,31 @@ train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-dataloaders = {}
-dataloaders["train"] = DataLoader(
-    train_dataset, batch_size=8, shuffle=True, num_workers=4
+val_transform = transforms.Compose(
+    [transforms.Resize((512, 512), antialias=True), transforms.ToTensor()]
 )
-dataloaders["val"] = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=4)
+
+train_transform = transforms.Compose(
+    [
+        transforms.Resize((512, 512), antialias=True),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.ToTensor(),
+    ]
+)
+
+# Apply the transformations to the datasets
+train_dataset.dataset.transforms = train_transform
+val_dataset.dataset.transforms = val_transform
+
+batch_size = 8
+dataloaders = {
+    "train": DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+    ),
+    "val": DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4),
+}
 
 # Initialize the model for Faster R-CNN
 num_classes = len(set(class_names)) + 1  # +1 for the background class
@@ -84,7 +104,7 @@ model = detection.fasterrcnn_resnet50_fpn(
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
 optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
-num_epochs = 10
+num_epochs = 100
 iou_metric = torchmetrics.detection.IntersectionOverUnion()
 
 # List to store epoch-wise losses for plotting
@@ -102,7 +122,8 @@ for epoch in range(num_epochs):
         else:
             model.eval()
 
-        for images, targets in dataloaders[phase]:
+        for images, targets in tqdm(dataloaders[phase], desc=phase, ncols=100):
+            # show_images(images, batch_size)
             images = [image.to(device) for image in images]
             targets = [
                 {
@@ -131,8 +152,7 @@ for epoch in range(num_epochs):
                 if iou:
                     running_iou += iou
 
-                # for image, prediction in zip(images, outputs):
-                #    visualize_predictions(image, prediction)
+                # visualize_predictions(images[0], outputs[0])
 
     epoch_loss = running_loss / len(dataloaders["train"])
     epoch_iou = running_iou / len(dataloaders["val"])
@@ -161,5 +181,4 @@ plt.title("IoU over Epochs")
 plt.legend()
 plt.grid(True)
 
-# TODO: each epoch plot, augmentation
 # TODO: mean average precision, mean average recall, IoU per class
