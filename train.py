@@ -116,12 +116,13 @@ iou_metric = torchmetrics.detection.IntersectionOverUnion()
 # List to store epoch-wise losses for plotting
 epoch_losses = []
 epoch_ious = []
+epoch_class_ious = {i: [] for i in range(num_classes)}
 
 # Training loop
 for epoch in range(num_epochs):
     running_loss = 0.0
     running_iou = 0.0
-    classwise_ious = {i: [] for i in range(num_classes)}
+    running_class_ious = {i: [] for i in range(num_classes)}
 
     for phase in ["train", "val"]:
         if phase == "train":
@@ -166,7 +167,7 @@ for epoch in range(num_epochs):
                                 iou = iou_metric([pred], [target])
                                 iou = iou["iou"].item()
                                 if iou:
-                                    classwise_ious[gt_label.item()].append(iou)
+                                    running_class_ious[gt_label.item()].append(iou)
 
                 # visualize_predictions(images[0], outputs[0])
 
@@ -178,12 +179,13 @@ for epoch in range(num_epochs):
 
     mean_ious_per_class = {
         cls: sum(ious) / len(ious) if ious else 0
-        for cls, ious in classwise_ious.items()
+        for cls, ious in running_class_ious.items()
     }
 
-    print(
-        f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f} Classwise IoUs: {mean_ious_per_class}"
-    )
+    for cls, mean_iou in mean_ious_per_class.items():
+        epoch_class_ious[cls].append(mean_iou)
+
+    print(f"Epoch {epoch + 1}/{num_epochs} Loss: {epoch_loss:.4f} IoU: {epoch_iou:.4f}")
 
     checkpoints_dir = Path("checkpoints")
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
@@ -227,4 +229,18 @@ for epoch in range(num_epochs):
     plt.savefig(plots_dir / "iou_epochs.png")
     plt.close()  # Close the plot to free up memory
 
+    # Plotting Classwise IoU and save
+    plt.figure(figsize=(12, 6))
+    for cls, ious in epoch_class_ious.items():
+        plt.plot(ious, label=f"Class {cls}")
+    plt.xlabel("Epoch")
+    plt.ylabel("IoU")
+    plt.title("Class-wise IoU over Epochs")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(plots_dir / "class_iou_epochs.png")
+    plt.close()  # Close the plot to free up memory
+
 # TODO: mean average precision, mean average recall
+# TODO: add separate inference script with visualisation and reading checkpoint
+# TODO: log training
