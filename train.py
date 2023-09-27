@@ -4,7 +4,7 @@ from torch.utils.data import random_split, DataLoader
 import torchvision.models as torchmodels
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
-import torchmetrics
+from torchmetrics.detection import MeanAveragePrecision, IntersectionOverUnion
 import matplotlib
 
 matplotlib.use("Agg")  # Set a non-GUI backend
@@ -111,24 +111,29 @@ model.to(device)
 optimizer = SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 num_epochs = 100
 
-iou_metric = torchmetrics.detection.IntersectionOverUnion()
+iou_metric = IntersectionOverUnion()
+map_metric = MeanAveragePrecision()
 
 # List to store epoch-wise losses for plotting
 epoch_losses = []
 epoch_ious = []
 epoch_class_ious = {i: [] for i in range(num_classes)}
+epoch_maps = []
 
 # Training loop
 for epoch in range(num_epochs):
     running_loss = 0.0
     running_iou = 0.0
     running_class_ious = {i: [] for i in range(num_classes)}
+    running_map = 0.0
 
     for phase in ["train", "val"]:
         if phase == "train":
             model.train()
         else:
             model.eval()
+            # TODO: iou_metric.reset()
+            map_metric.reset()
 
         for images, targets in tqdm(dataloaders[phase], desc=phase, ncols=100):
             # show_images(images, batch_size)
@@ -160,6 +165,8 @@ for epoch in range(num_epochs):
                 if iou:
                     running_iou += iou
 
+                map_metric.update(outputs, targets)
+
                 for pred, target in zip(outputs, targets):
                     for gt_box, gt_label in zip(target["boxes"], target["labels"]):
                         for pred_box, pred_label in zip(pred["boxes"], pred["labels"]):
@@ -173,9 +180,11 @@ for epoch in range(num_epochs):
 
     epoch_loss = running_loss / len(dataloaders["train"])
     epoch_iou = running_iou / len(dataloaders["val"])
+    epoch_map = map_metric.compute()["map"].item()
 
     epoch_losses.append(epoch_loss)
     epoch_ious.append(epoch_iou)
+    epoch_maps.append(epoch_map)
 
     mean_ious_per_class = {
         cls: sum(ious) / len(ious) if ious else 0
@@ -241,6 +250,17 @@ for epoch in range(num_epochs):
     plt.savefig(plots_dir / "class_iou_epochs.png")
     plt.close()  # Close the plot to free up memory
 
-# TODO: mean average precision, mean average recall
+    # Plotting mAP and save
+    plt.figure(figsize=(12, 6))
+    plt.plot(epoch_maps, label="mAP")
+    plt.xlabel("Epoch")
+    plt.ylabel("mAP")
+    plt.title("Mean Average Precision over Epochs")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(plots_dir / "map_epochs.png")
+    plt.close()  # Close the plot to free up memory
+
+# TODO: mean average recall
 # TODO: add separate inference script with visualisation and reading checkpoint
 # TODO: log training
