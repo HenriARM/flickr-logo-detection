@@ -42,28 +42,28 @@ def visualize_predictions(image, predictions, idx_to_class, score_threshold=0.5)
         image (torch.Tensor): The input image tensor (C, H, W).
         predictions (dict): The model's predictions dictionary.
         score_threshold (float): Minimum confidence score to visualize a prediction.
-
-    Returns:
-        None (displays the image with bounding boxes and labels).
     """
 
     image = image.permute(1, 2, 0).cpu().numpy()  # Convert from (C, H, W) to (H, W, C)
     image = np.clip(image, 0, 1)  # Clip to [0, 1] range
 
-    fig, ax = plt.subplots(1, figsize=(10, 8))
+    # Name the window and reuse it for plotting
+    _, ax = plt.subplots(1, figsize=(10, 8), num="Prediction Visualization")
+
+    # Clear the previous content in the figure window
     ax.imshow(image)
 
     boxes = predictions.get("boxes")
     labels = predictions.get("labels")
     scores = predictions.get("scores")
 
-    if boxes is None or boxes.numel() == 0:
+    if boxes is None or boxes.numel() == 0:  # Check if boxes tensor is empty
         plt.draw()
         plt.waitforbuttonpress(0)
         plt.clf()  # Clear the current figure
         ax.cla()  # Clear the current axis
         return  # Return as there are no bounding boxes to draw
-    
+
     for box, label, score in zip(boxes, labels, scores):
         if score >= score_threshold:
             x_min, y_min, x_max, y_max = box.cpu().numpy()
@@ -89,9 +89,9 @@ def visualize_predictions(image, predictions, idx_to_class, score_threshold=0.5)
                 fontsize=12,
                 color="white",
             )
-    
+
     plt.axis("off")
     plt.draw()  # Draw the current plot
     plt.waitforbuttonpress(0)  # Wait for a button press
     plt.clf()  # Clear the current figure
-    ax.cla()  
+    ax.cla()

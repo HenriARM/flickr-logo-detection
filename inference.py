@@ -8,6 +8,9 @@ from utils import visualize_predictions
 
 with open("class_to_idx.json", "r") as f:
     class_to_idx = json.load(f)
+
+# Create inverse mapping
+idx_to_class = {idx: class_name for class_name, idx in class_to_idx.items()}
 num_classes = len(class_to_idx) + 1
 
 # TODO: put checkpoint_path, image_path, and num_classes as args
@@ -50,4 +53,4 @@ for i in range(0, len(list(dataset_path.glob("*.jpg"))), batch_size):
     # Process or visualize the predictions as needed
     for j, prediction in enumerate(predictions):
         print(f"\nPrediction for {batch_image_paths[j]}: ", prediction)
-        visualize_predictions(image, prediction, class_to_idx)
+        visualize_predictions(batch_images[j], prediction, idx_to_class)
