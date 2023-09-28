@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 import json
 from torch.optim import SGD
+
 # TODO: visualise lr
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import random_split, DataLoader
@@ -18,6 +19,17 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 from dataset import FlickrLogosDataset, read_flickr_logos_annotations
+
+
+def combine_predictions(standard_preds, tta_preds):
+    combined_preds = []
+    for std_pred, tta_pred in zip(standard_preds, tta_preds):
+        combined_pred = {
+            "boxes": std_pred["boxes"],
+            "scores": (std_pred["scores"] + tta_pred["scores"]) / 2,
+        }
+        combined_preds.append(combined_pred)
+    return combined_preds
 
 
 train_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
@@ -74,6 +86,13 @@ train_transform = transforms.Compose(
     ]
 )
 
+tta_transform = transforms.Compose(
+    [
+        transforms.ToTensor(),
+        transforms.RandomHorizontalFlip(p=1),
+    ]
+)
+
 # Apply the transformations to the datasets
 train_dataset.dataset.transforms = train_transform
 val_dataset.dataset.transforms = val_transform
@@ -124,8 +143,10 @@ for epoch in range(num_epochs):
             # TODO: iou_metric.reset()
             map_metric.reset()
 
+            tta_preds = []
+            tta_targets = []
+
         for images, targets in tqdm(dataloaders[phase], desc=phase, ncols=100):
-            # show_images(images, batch_size)
             images = [image.to(device) for image in images]
             targets = [
                 {
@@ -149,6 +170,13 @@ for epoch in range(num_epochs):
                 # Calculate IoU for all phases
                 with torch.no_grad():
                     outputs = model(images)
+
+                    # tta_images = [tta_transform(image) for image in images]
+                    # tta_outputs = model(tta_images)
+
+                    # tta_preds.extend(tta_outputs)
+                    # tta_targets.extend(targets)
+
                 iou = iou_metric(outputs, targets)
                 iou = iou["iou"].item()
                 if iou:
@@ -164,6 +192,9 @@ for epoch in range(num_epochs):
                                 iou = iou["iou"].item()
                                 if iou:
                                     running_class_ious[gt_label.item()].append(iou)
+
+        # if phase == "val":
+        #     combined_preds = combine_predictions(outputs, tta_preds)
 
     scheduler.step()
 
