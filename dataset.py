@@ -15,25 +15,27 @@ def str_list_to_int(str_list):
     return [to_int(s) for s in str_list]
 
 
-def read_flickr_logos_annotations(annotations_path):
+def read_flickr_logos_annotations(annotations_path, bbox=True):
     with open(annotations_path, "r") as f:
         lines = f.readlines()
 
-    # split each line by tab character and space
-    data = [line.strip().split("\t") for line in lines]
-    data = [line.strip().split(" ") for line in lines]
-
-    # Extract individual data points from each line
-    file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
-
-    return (
-        file_names,
-        class_names,
-        str_list_to_int(x1),
-        str_list_to_int(y1),
-        str_list_to_int(x2),
-        str_list_to_int(y2),
-    )
+    if bbox:
+        # split filename, class name, and bounding box coordinates
+        data = [line.strip().split(" ") for line in lines]
+        file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
+        return (
+            file_names,
+            class_names,
+            str_list_to_int(x1),
+            str_list_to_int(y1),
+            str_list_to_int(x2),
+            str_list_to_int(y2),
+        )
+    else:
+        # split filename, class name
+        data = [line.strip().split("\t") for line in lines]
+        file_names, class_names = zip(*data)
+        return (file_names, class_names)
 
 
 class FlickrLogosDataset(Dataset):

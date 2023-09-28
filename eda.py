@@ -10,9 +10,6 @@ eta_dir = Path("pics/eta")
 eta_dir.mkdir(parents=True, exist_ok=True)
 
 annotations_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
-with open(annotations_path, "r") as f:
-    lines = f.readlines()
-
 file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(
     annotations_path
 )

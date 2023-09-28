@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import torchvision.models.detection as detection
 from pathlib import Path
 from utils import visualize_predictions
+from dataset import read_flickr_logos_annotations
 
 with open("class_to_idx.json", "r") as f:
     class_to_idx = json.load(f)
@@ -12,6 +13,11 @@ with open("class_to_idx.json", "r") as f:
 # Create inverse mapping
 idx_to_class = {idx: class_name for class_name, idx in class_to_idx.items()}
 num_classes = len(class_to_idx) + 1
+
+annotations_path = (
+    "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_query_set_annotation.txt"
+)
+file_names, class_names = read_flickr_logos_annotations(annotations_path, bbox=False)
 
 # TODO: put checkpoint_path, image_path, and num_classes as args
 dataset_path = Path("dataset/flickr_logos_27_dataset_images")
