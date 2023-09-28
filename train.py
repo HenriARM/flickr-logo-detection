@@ -18,6 +18,7 @@ from dataset import FlickrLogosDataset
 # from utils import visualize_predictions, show_images
 from tqdm import tqdm
 from pathlib import Path
+import json
 
 
 def to_int(s):
@@ -61,6 +62,13 @@ file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(
     train_annotation_path
 )
 
+# save class names to use in inference
+with open("class_to_idx.json", "w") as f:
+    class_to_idx = {
+        class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))
+    }
+    json.dump(class_to_idx, f)
+
 dataset = FlickrLogosDataset(
     dataset_path,
     file_names,
@@ -68,6 +76,7 @@ dataset = FlickrLogosDataset(
     list(zip(x1, y1, x2, y2)),
     transforms=None,
 )
+
 
 # Splitting the dataset into training and validation
 train_size = int(0.8 * len(dataset))

@@ -13,7 +13,7 @@ class FlickrLogosDataset(Dataset):
         self.box_coords = box_coords
         self.transforms = transforms
         self.class_to_idx = {
-            class_name: idx for idx, class_name in enumerate(set(class_names))
+            {class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))}
         }
 
     def __len__(self):
@@ -28,8 +28,8 @@ class FlickrLogosDataset(Dataset):
         x1, y1, x2, y2 = self.box_coords[idx]
 
         # Check and correct bounding box coordinates
-        x1, x2 = min(x1, x2, width-1), max(x1, x2, width-1)
-        y1, y2 = min(y1, y2, height-1), max(y1, y2, height-1)
+        x1, x2 = min(x1, x2, width - 1), max(x1, x2, width - 1)
+        y1, y2 = min(y1, y2, height - 1), max(y1, y2, height - 1)
 
         # Ensure valid bounding boxes (see example dataset/flickr_logos_27_dataset_images/2662264721.jpg)
         if x2 <= x1:
