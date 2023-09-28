@@ -1,6 +1,5 @@
 from tqdm import tqdm
 from pathlib import Path
-import json
 import torch
 from torch.optim import SGD
 from torch.utils.data import random_split, DataLoader
@@ -20,9 +19,7 @@ from dataset import FlickrLogosDataset, read_flickr_logos_annotations
 # from torch.optim.lr_scheduler import StepLR
 
 
-# TODO: distractor dataset?
 train_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
-# test_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_query_set_annotation.txt"
 dataset_path = "dataset/flickr_logos_27_dataset_images"
 
 file_names, class_names, x1, y1, x2, y2 = read_flickr_logos_annotations(
@@ -50,16 +47,29 @@ train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
+image_shape = (512, 512)
+
 val_transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Resize((512, 512), antialias=True)]
+    [
+        transforms.ToTensor(),
+        transforms.Resize(image_shape, antialias=True),
+    ]
 )
 
 train_transform = transforms.Compose(
     [
         transforms.ToTensor(),
+        transforms.Resize(image_shape, antialias=True),
+        # TODO: keep_aspect_ratio
+        # transforms.Pad(padding_mode="edge"),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        # transforms.RandomCrop((400, 400)),
+        transforms.RandomAffine(degrees=0, scale=(0.8, 1.2)),
+        transforms.RandomPerspective(distortion_scale=0.2, p=0.5, interpolation=3),
+        transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
+        transforms.RandomGrayscale(p=0.1),
     ]
 )
 
@@ -238,5 +248,4 @@ for epoch in range(num_epochs):
     plt.close()  # Close the plot to free up memory
 
 # TODO: mean average recall
-# TODO: add separate inference script with visualisation and reading checkpoint
 # TODO: log training
