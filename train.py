@@ -1,3 +1,6 @@
+from tqdm import tqdm
+from pathlib import Path
+import json
 import torch
 from torch.optim import SGD
 from torch.utils.data import random_split, DataLoader
@@ -12,45 +15,9 @@ import matplotlib.pyplot as plt
 
 plt.ioff()
 
-from dataset import FlickrLogosDataset
+from dataset import FlickrLogosDataset, read_flickr_logos_annotations
 
 # from torch.optim.lr_scheduler import StepLR
-# from utils import visualize_predictions, show_images
-from tqdm import tqdm
-from pathlib import Path
-import json
-
-
-def to_int(s):
-    try:
-        return int(s)
-    except ValueError:
-        return None
-
-
-def str_list_to_int(str_list):
-    return [to_int(s) for s in str_list]
-
-
-def read_flickr_logos_annotations(annotations_path):
-    with open(annotations_path, "r") as f:
-        lines = f.readlines()
-
-    # split each line by tab character and space
-    data = [line.strip().split("\t") for line in lines]
-    data = [line.strip().split(" ") for line in lines]
-
-    # Extract individual data points from each line
-    file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
-
-    return (
-        file_names,
-        class_names,
-        str_list_to_int(x1),
-        str_list_to_int(y1),
-        str_list_to_int(x2),
-        str_list_to_int(y2),
-    )
 
 
 # TODO: distractor dataset?
@@ -67,7 +34,7 @@ with open("class_to_idx.json", "w") as f:
     class_to_idx = {
         class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))
     }
-    json.dump(class_to_idx, f)
+    # json.dump(class_to_idx, f)
 
 dataset = FlickrLogosDataset(
     dataset_path,

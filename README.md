@@ -19,6 +19,10 @@ Class distribution
 
 ![Class distribution](pics/eta/class_distribution.png)
 
-Image height and width distribution
+Image resolution distribution
 
-![Width height distribution](pics/eta/width_height_distribution.png)
+![Width height distribution](pics/eta/image_resolution_distribution.png)
+
+Bounding box size distribution
+
+![Width height distribution](pics/eta/bounding_box_size_distribution.png)

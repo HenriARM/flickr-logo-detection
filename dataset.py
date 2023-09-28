@@ -4,6 +4,38 @@ import os
 import torch
 
 
+def to_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def str_list_to_int(str_list):
+    return [to_int(s) for s in str_list]
+
+
+def read_flickr_logos_annotations(annotations_path):
+    with open(annotations_path, "r") as f:
+        lines = f.readlines()
+
+    # split each line by tab character and space
+    data = [line.strip().split("\t") for line in lines]
+    data = [line.strip().split(" ") for line in lines]
+
+    # Extract individual data points from each line
+    file_names, class_names, _, x1, y1, x2, y2 = zip(*data)
+
+    return (
+        file_names,
+        class_names,
+        str_list_to_int(x1),
+        str_list_to_int(y1),
+        str_list_to_int(x2),
+        str_list_to_int(y2),
+    )
+
+
 class FlickrLogosDataset(Dataset):
     # TODO: add strict type hints
     def __init__(self, img_dir, file_names, class_names, box_coords, transforms=None):
@@ -13,7 +45,7 @@ class FlickrLogosDataset(Dataset):
         self.box_coords = box_coords
         self.transforms = transforms
         self.class_to_idx = {
-            {class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))}
+            class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))
         }
 
     def __len__(self):
