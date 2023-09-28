@@ -25,8 +25,7 @@ plt.barh(list(class_counts.keys()), list(class_counts.values()), color="blue")
 plt.ylabel("Class Names")
 plt.xlabel("Count")
 plt.title("Class Distribution")
-plt.savefig(eta_dir / "class_distribution.png")
-plt.clf()  
+plt.savefig(eta_dir / "class_distribution.png") 
 
 
 # plat picture height and width distribution
