@@ -1,6 +1,7 @@
 from tqdm import tqdm
 from pathlib import Path
 import torch
+import json
 from torch.optim import SGD
 from torch.utils.data import random_split, DataLoader
 import torchvision.models as torchmodels
@@ -31,7 +32,7 @@ with open("class_to_idx.json", "w") as f:
     class_to_idx = {
         class_name: idx for idx, class_name in enumerate(sorted(set(class_names)))
     }
-    # json.dump(class_to_idx, f)
+    json.dump(class_to_idx, f)
 
 dataset = FlickrLogosDataset(
     dataset_path,
