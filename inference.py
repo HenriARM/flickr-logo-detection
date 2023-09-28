@@ -1,19 +1,23 @@
 import cv2
+import json
 import torch
 import torchvision.transforms as transforms
 import torchvision.models.detection as detection
 from pathlib import Path
-
 from utils import visualize_predictions
 
+with open("class_to_idx.json", "r") as f:
+    class_to_idx = json.load(f)
+num_classes = len(class_to_idx) + 1
+
 # TODO: put checkpoint_path, image_path, and num_classes as args
+dataset_path = Path("dataset/flickr_logos_27_dataset_images")
 
 # Load the checkpoint
 checkpoint_path = Path("checkpoints/model_epoch_100.pth")
 checkpoint = torch.load(checkpoint_path)
 
 # Load the model and set it to evaluation mode
-num_classes = 28
 model = detection.fasterrcnn_resnet50_fpn(num_classes=num_classes)
 model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()
@@ -21,24 +25,29 @@ model.eval()
 # Move the model to the device
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
-
-# Load an arbitrary image with OpenCV
-image_path = "dataset/flickr_logos_27_dataset_images/123937306.jpg"
-image = cv2.imread(image_path)
-if image is None:
-    raise FileNotFoundError(f"Image not found: {image_path}")
-
-# Convert BGR image to RGB
-image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-# Perform the necessary transformations on the image
 transform = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
-image = transform(image)
-image = image.to(device)
 
-# Perform inference
-with torch.no_grad():
-    prediction = model([image])
+batch_size = 8
+image_paths = list(dataset_path.glob("*.jpg"))
+for i in range(0, len(list(dataset_path.glob("*.jpg"))), batch_size):
+    batch_image_paths = image_paths[i : i + batch_size]
+    batch_images = []
 
-print(prediction)
-visualize_predictions(image, prediction)
+    # Load and preprocess images in the batch
+    for image_path in batch_image_paths:
+        image = cv2.imread(str(image_path))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = transform(image)
+        batch_images.append(image)
+
+    # Move images to device
+    batch_images = [image.to(device) for image in batch_images]
+
+    # Run inference on the batch
+    with torch.no_grad():
+        predictions = model(batch_images)
+
+    # Process or visualize the predictions as needed
+    for j, prediction in enumerate(predictions):
+        print(f"\nPrediction for {batch_image_paths[j]}: ", prediction)
+        visualize_predictions(image, prediction, class_to_idx)
