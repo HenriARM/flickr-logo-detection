@@ -3,6 +3,8 @@ from pathlib import Path
 import torch
 import json
 from torch.optim import SGD
+# TODO: visualise lr
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import random_split, DataLoader
 import torchvision.models as torchmodels
 import torchvision.transforms as transforms
@@ -16,8 +18,6 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 from dataset import FlickrLogosDataset, read_flickr_logos_annotations
-
-# from torch.optim.lr_scheduler import StepLR
 
 
 train_annotation_path = "dataset/flickr_logos_27_dataset/flickr_logos_27_dataset_training_set_annotation.txt"
@@ -107,6 +107,8 @@ epoch_ious = []
 epoch_class_ious = {i: [] for i in range(num_classes)}
 epoch_maps = []
 
+scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
+
 # Training loop
 for epoch in range(num_epochs):
     running_loss = 0.0
@@ -163,7 +165,7 @@ for epoch in range(num_epochs):
                                 if iou:
                                     running_class_ious[gt_label.item()].append(iou)
 
-                # visualize_predictions(images[0], outputs[0])
+    scheduler.step()
 
     epoch_loss = running_loss / len(dataloaders["train"])
     epoch_iou = running_iou / len(dataloaders["val"])
