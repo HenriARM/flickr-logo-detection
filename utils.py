@@ -13,27 +13,6 @@ def show_images(images, nrow=8):
     plt.show()
 
 
-# dataiter = iter(dataloader)
-# images, _ = next(dataiter)
-# show_images(images, 8)
-
-
-# plot class distribution
-
-# import matplotlib.pyplot as plt
-# from collections import Counter
-# class_counts = Counter(class_names)
-# plt.figure(figsize=(10,10))
-# plt.barh(list(class_counts.keys()), list(class_counts.values()), color='blue')
-# plt.ylabel('Class Names')
-# plt.xlabel('Count')
-# plt.title('Class Distribution')
-# plt.show()
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-
 def visualize_predictions(image, predictions, idx_to_class, score_threshold=0.5):
     """
     Visualize object detection predictions on an image.
