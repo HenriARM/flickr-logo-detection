@@ -54,6 +54,5 @@ axs[1].set_xlabel("Width")
 axs[1].set_ylabel("Number of Images")
 
 plt.tight_layout()
-plt.show()
 plt.savefig(eta_dir / "width_height_distribution.png")
 plt.clf()  
