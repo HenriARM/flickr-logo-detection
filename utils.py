@@ -34,7 +34,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def visualize_predictions(image, predictions, class_to_idx, score_threshold=0.5):
+def visualize_predictions(image, predictions, idx_to_class, score_threshold=0.5):
     """
     Visualize object detection predictions on an image.
 
@@ -47,19 +47,23 @@ def visualize_predictions(image, predictions, class_to_idx, score_threshold=0.5)
         None (displays the image with bounding boxes and labels).
     """
 
-    # Create inverse mapping
-    idx_to_class = {idx: class_name for class_name, idx in class_to_idx.items()}
-
     image = image.permute(1, 2, 0).cpu().numpy()  # Convert from (C, H, W) to (H, W, C)
     image = np.clip(image, 0, 1)  # Clip to [0, 1] range
 
     fig, ax = plt.subplots(1, figsize=(10, 8))
     ax.imshow(image)
 
-    boxes = predictions["boxes"]
-    labels = predictions["labels"]
-    scores = predictions["scores"]
+    boxes = predictions.get("boxes")
+    labels = predictions.get("labels")
+    scores = predictions.get("scores")
 
+    if boxes is None or boxes.numel() == 0:
+        plt.draw()
+        plt.waitforbuttonpress(0)
+        plt.clf()  # Clear the current figure
+        ax.cla()  # Clear the current axis
+        return  # Return as there are no bounding boxes to draw
+    
     for box, label, score in zip(boxes, labels, scores):
         if score >= score_threshold:
             x_min, y_min, x_max, y_max = box.cpu().numpy()
@@ -85,6 +89,9 @@ def visualize_predictions(image, predictions, class_to_idx, score_threshold=0.5)
                 fontsize=12,
                 color="white",
             )
-
+    
     plt.axis("off")
-    plt.show()
+    plt.draw()  # Draw the current plot
+    plt.waitforbuttonpress(0)  # Wait for a button press
+    plt.clf()  # Clear the current figure
+    ax.cla()  
