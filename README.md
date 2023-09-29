@@ -13,6 +13,13 @@ $ inference.py
 
 TODO: reqs txt
 
+
+# Results
+
+![IoU](pics/experiment1/class_iou_epochs.png)
+![Loss](pics/experiment1/loss_epochs.png)
+![mAP](pics/experiment1/map_epochs.png)
+
 # EDA
 
 Class distribution
